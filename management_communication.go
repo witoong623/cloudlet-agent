@@ -48,9 +48,9 @@ func NewManagementCommunication(name, ip, domain string) *ManagementCommunicatio
 // RegisterThisCloudlet registers this Cloudlet with Management server
 func (m *ManagementCommunication) RegisterThisCloudlet(registerLink string) error {
 	formData := url.Values{}
-	formData.Add("name", m.Name)
-	formData.Add("ip", m.IPAddr)
-	formData.Add("domain", m.Domain)
+	formData.Add("cloudlet-name", m.Name)
+	formData.Add("cloudlet-ip", m.IPAddr)
+	formData.Add("cloudlet-domain", m.Domain)
 	res, err := m.httpClient.PostForm(registerLink, formData)
 	if err != nil {
 		return err
@@ -60,10 +60,26 @@ func (m *ManagementCommunication) RegisterThisCloudlet(registerLink string) erro
 	return nil
 }
 
+// RegisterService registers service that this cloudlet offers
+func (m *ManagementCommunication) RegisterService(registerLink, sName, sDomain string) error {
+	formData := url.Values{}
+	formData.Add("cloudlet-name", m.Name)
+	formData.Add("service-name", sName)
+	formData.Add("service-domain", sDomain)
+	res, err := m.httpClient.PostForm(registerLink, formData)
+	if err != nil {
+		return err
+	}
+	res.Body.Close()
+
+	return nil
+}
+
+// HandleManagementWorkloadQuery handles HTTP request from management server
 func HandleManagementWorkloadQuery(cm *ManagementCommunication) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			w.WriteHeader(http.StatusBadRequest)
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -85,16 +101,13 @@ func HandleManagementWorkloadQuery(cm *ManagementCommunication) http.Handler {
 		writeflusher.Flush()
 		encoder := json.NewEncoder(writeflusher)
 		var workloadMsg WorkloadStatusMessage
-		log.Printf("HandleManagementWorkloadQuery got called.")
 
 		for {
 			select {
 			case <-rCancelSignal:
-				log.Printf("Request doen got called.")
 				return
 			default:
 				workloadMsg = WorkloadStatusMessage{ClientCount: <-outChan}
-				log.Println("write value to stream")
 				if err := encoder.Encode(&workloadMsg); err != nil {
 					log.Println(err)
 					return
@@ -105,6 +118,8 @@ func HandleManagementWorkloadQuery(cm *ManagementCommunication) http.Handler {
 }
 
 func (m *ManagementCommunication) broadcastClientCount() {
+	LongRunGOWG.Add(1)
+	defer LongRunGOWG.Done()
 	for count := range m.ClientCountIncoming {
 		m.mutex.Lock()
 		for _, out := range m.clientCountOutgoingChans {
@@ -112,4 +127,12 @@ func (m *ManagementCommunication) broadcastClientCount() {
 		}
 		m.mutex.Unlock()
 	}
+}
+
+// GetServerRequestingCount returns the number
+// of client that are requesting workload count
+func (m *ManagementCommunication) GetServerRequestingCount() int {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	return len(m.clientCountOutgoingChans)
 }

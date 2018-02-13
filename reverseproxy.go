@@ -67,8 +67,10 @@ func (rps *ReverseProxyServer) GetTheNumberOfClient() int32 {
 }
 
 func handleReverseProxy(rpc *reverseProxyCtx) http.Handler {
+	webserverName := "Cloudlet: " + Config.CloudletName
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if reverseProxy, ok := rpc.targets[r.Host]; ok {
+			w.Header().Set("Server", webserverName)
 			reverseProxy.ServeHTTP(w, r)
 		} else {
 			log.Println("Server not found")

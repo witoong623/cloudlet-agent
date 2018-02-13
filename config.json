@@ -1,9 +1,9 @@
 {
     "CloudletName": "CL1",
-	"CloudletIP": "127.0.0.1",
+	"CloudletIP": "172.16.0.6",
     "CloudletDomain": "cl1.internaldomain.com",
-    "CloudletRegisterLink": "http://localhost:8000/cloudlet/register",
-    "ServiceRegisterLink": "http://localhost:8000/service/register",
+    "CloudletRegisterLink": "http://172.16.0.5:8000/cloudlet/register",
+    "ServiceRegisterLink": "http://172.16.0.5:8000/service/register",
 	"Services": [
         {
             "Name": "OCR",
